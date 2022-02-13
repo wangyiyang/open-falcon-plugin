@@ -1,0 +1,55 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+# #############################################
+# Copyright (c) 2016-2026 letv Inc. All rights reserved.
+# #############################################
+#
+# Name:  leengine-falcon-plugin.py
+# Date:  2016-10-31 10:40
+# Author:   zhangjie
+# Email:   zhangjie@letv.com
+# Desc:
+#
+#
+
+# ovs-vsctl show | grep error | awk '{print $7}'
+# leengine-cnictl ipam check |wc -l 如果大于10 则报错 
+
+import subprocess
+import json
+import time
+import codecs
+
+falcon_list = []
+
+
+def get_ip():
+    ip=""
+    ts = int(time.time())
+    f = codecs.open('/usr/local/LeMonitor/falcon-agent/cfg.json','r','utf-8')
+    for l in f:
+        s = l.strip().split(' ')
+        if s[0] == '"hostname":':
+            ip = str(s[1]).strip(",").strip("\"")
+    return ip
+
+
+def ovs_bad_port():
+    ovs_bad_port_dict={"step": 60,"endpoint": get_ip(),"tags": "leengine-cni=ovs_bad_port","timestamp": int(time.time()),"metric": "cni-ovs-bad-port","value": 0.00,"counterType": "GAUGE"}
+    ovs_output = subprocess.check_output("ovs-vsctl show | grep error | awk '{print $7}'", shell=True)
+    if ovs_output == "":
+        falcon_dict["value"] = 0.00
+    else:
+        falcon_dict["value"] = 1
+    falcon_list.append(ovs_bad_port_dict)
+    
+def ipam_check():
+    ipam_check_dict={"step": 60,"endpoint": get_ip(),"tags": "leengine-cni=ipam_check","timestamp": int(time.time()),"metric": "cni-ipam-check","value": 0.00,"counterType": "GAUGE"}
+    ipam_check_output = subprocess.check_output("leengine-cnictl ipam check |wc -l", shell=True)
+    ipam_check_dict["value"] = int(ipam_check_output) - 4
+    falcon_list.append(ipam_check_dict)
+
+if __name__ == "__main__":
+    ipam_check()
+    print falcon_list
